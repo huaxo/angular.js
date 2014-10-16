@@ -16,19 +16,31 @@ describe('ngIf', function () {
     dealoc(element);
   });
 
-  function makeIf(expr) {
-    element.append($compile('<div class="my-class" ng-if="' + expr + '"><div>Hi</div></div>')($scope));
+  function makeIf() {
+    forEach(arguments, function (expr) {
+      element.append($compile('<div class="my-class" ng-if="' + expr + '"><div>Hi</div></div>')($scope));
+    });
     $scope.$apply();
   }
 
-  it('should immediately remove element if condition is false', function () {
-    makeIf('false');
+  it('should immediately remove the element if condition is falsy', function () {
+    makeIf('false', 'undefined', 'null', 'NaN', '\'\'', '0');
     expect(element.children().length).toBe(0);
   });
 
   it('should leave the element if condition is true', function () {
     makeIf('true');
     expect(element.children().length).toBe(1);
+  });
+
+  it('should leave the element if the condition is a non-empty string', function () {
+    makeIf('\'f\'', '\'0\'', '\'false\'', '\'no\'', '\'n\'', '\'[]\'');
+    expect(element.children().length).toBe(6);
+  });
+
+  it('should leave the element if the condition is an object', function () {
+    makeIf('[]', '{}');
+    expect(element.children().length).toBe(2);
   });
 
   it('should not add the element twice if the condition goes from true to true', function () {
@@ -303,14 +315,12 @@ describe('ngIf animations', function () {
 
   it('should destroy the previous leave animation if a new one takes place', function() {
     module(function($provide) {
-      $provide.value('$animate', {
-        enabled : function() { return true; },
-        leave : function() {
-          //DOM operation left blank
-        },
-        enter : function(element, parent) {
-          parent.append(element);
-        }
+      $provide.decorator('$animate', function($delegate, $$q) {
+        var emptyPromise = $$q.defer().promise;
+        $delegate.leave = function() {
+          return emptyPromise;
+        };
+        return $delegate;
       });
     });
     inject(function ($compile, $rootScope, $animate) {
@@ -339,4 +349,23 @@ describe('ngIf animations', function () {
     });
   });
 
+  it('should work with svg elements when the svg container is transcluded', function() {
+    module(function($compileProvider) {
+      $compileProvider.directive('svgContainer', function() {
+        return {
+          template: '<svg ng-transclude></svg>',
+          replace: true,
+          transclude: true
+        };
+      });
+    });
+    inject(function($compile, $rootScope) {
+      element = $compile('<svg-container><circle ng-if="flag"></circle></svg-container>')($rootScope);
+      $rootScope.flag = true;
+      $rootScope.$apply();
+
+      var circle = element.find('circle');
+      expect(circle[0].toString()).toMatch(/SVG/);
+    });
+  });
 });

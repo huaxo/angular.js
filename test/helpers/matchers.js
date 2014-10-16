@@ -25,13 +25,6 @@ beforeEach(function() {
     };
   }
 
-  function indexOf(array, obj) {
-    for ( var i = 0; i < array.length; i++) {
-      if (obj === array[i]) return i;
-    }
-    return -1;
-  }
-
   function isNgElementHidden(element) {
     // we need to check element.getAttribute for SVG nodes
     var hidden = true;
@@ -50,6 +43,11 @@ beforeEach(function() {
     toBePristine: cssMatcher('ng-pristine', 'ng-dirty'),
     toBeUntouched: cssMatcher('ng-untouched', 'ng-touched'),
     toBeTouched: cssMatcher('ng-touched', 'ng-untouched'),
+    toBeAPromise: function() {
+      this.message = valueFn(
+          "Expected object " + (this.isNot ? "not ": "") + "to be a promise");
+      return isPromiseLike(this.actual);
+    },
     toBeShown: function() {
       this.message = valueFn(
           "Expected element " + (this.isNot ? "": "not ") + "to have 'ng-hide' class");
@@ -162,16 +160,20 @@ beforeEach(function() {
 
 
     toBeOneOf: function() {
-      return indexOf(arguments, this.actual) !== -1;
+      return Array.prototype.indexOf.call(arguments, this.actual) !== -1;
     },
 
     toHaveClass: function(clazz) {
       this.message = function() {
         return "Expected '" + angular.mock.dump(this.actual) + "' to have class '" + clazz + "'.";
       };
-      return this.actual.hasClass ?
-              this.actual.hasClass(clazz) :
-              angular.element(this.actual).hasClass(clazz);
+      var classes = clazz.trim().split(/\s+/);
+      for (var i=0; i<classes.length; ++i) {
+        if (!jqLiteHasClass(this.actual[0], classes[i])) {
+          return false;
+        }
+      }
+      return true;
     },
 
     toThrowMatching: function(expected) {

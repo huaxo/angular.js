@@ -112,7 +112,7 @@ angular.scenario.setUpAndRun = function(config) {
   }
 
   angular.forEach(angular.scenario.output, function(fn, name) {
-    if (!output.length || indexOf(output,name) != -1) {
+    if (!output.length || output.indexOf(name) != -1) {
       var context = body.append('<div></div>').find('div:last');
       context.attr('id', name);
       fn.call({}, context, $runner, objModel);
@@ -294,7 +294,7 @@ _jQuery.fn.bindings = function(windowJquery, bindExp) {
   function push(value) {
     if (value === undefined) {
       value = '';
-    } else if (typeof value != 'string') {
+    } else if (typeof value !== 'string') {
       value = angular.toJson(value);
     }
     result.push('' + value);
@@ -304,9 +304,6 @@ _jQuery.fn.bindings = function(windowJquery, bindExp) {
     var element = windowJquery(this),
         bindings;
     if (bindings = element.data('$binding')) {
-      if (!angular.isArray(bindings)) {
-        bindings = [bindings];
-      }
       for(var expressions = [], binding, j=0, jj=bindings.length;  j<jj; j++) {
         binding = bindings[j];
 

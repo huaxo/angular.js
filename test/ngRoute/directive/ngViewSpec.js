@@ -56,7 +56,7 @@ describe('ngView', function() {
   });
 
 
-  it('should instantiate controller for empty template', function() {
+  it('should not instantiate the associated controller when an empty template is downloaded', function() {
     var log = [], controllerScope,
         Ctrl = function($scope) {
           controllerScope = $scope;
@@ -70,11 +70,12 @@ describe('ngView', function() {
     inject(function($route, $rootScope, $templateCache, $location) {
       $templateCache.put('/tpl.html', [200, '', {}]);
       $location.path('/some');
-      $rootScope.$digest();
 
-      expect(controllerScope.$parent).toBe($rootScope);
-      expect(controllerScope).toBe($route.current.scope);
-      expect(log).toEqual(['ctrl-init']);
+      expect(function() {
+        $rootScope.$digest();
+      }).toThrowMinErr('$compile', 'tpload', 'Failed to load template: /tpl.html');
+
+      expect(controllerScope).toBeUndefined();
     });
   });
 
@@ -773,7 +774,10 @@ describe('ngView animations', function() {
         $rootScope.klass = 'boring';
         $rootScope.$digest();
 
-        expect($animate.queue.shift().event).toBe('setClass');
+        expect($animate.queue.shift().event).toBe('addClass');
+        expect($animate.queue.shift().event).toBe('removeClass');
+
+        $animate.triggerReflow();
 
         expect(item.hasClass('classy')).toBe(false);
         expect(item.hasClass('boring')).toBe(true);
@@ -841,20 +845,8 @@ describe('ngView animations', function() {
       });
     });
 
-    it('should destroy the previous leave animation if a new one takes place', function() {
-      module(function($provide) {
-        $provide.value('$animate', {
-          enabled : function() { return true; },
-          leave : function() {
-            //DOM operation left blank
-          },
-          enter : function(element, parent, after) {
-            angular.element(after).after(element);
-          }
-        });
-      });
-      inject(function ($compile, $rootScope, $animate, $location) {
-        var item;
+    it('should destroy the previous leave animation if a new one takes place',
+      inject(function ($compile, $rootScope, $animate, $location, $timeout) {
         var $scope = $rootScope.$new();
         element = $compile(html(
           '<div>' +
@@ -882,8 +874,8 @@ describe('ngView animations', function() {
         $rootScope.$digest();
 
         expect(destroyed).toBe(true);
-      });
-    });
+      })
+    );
   });
 
 

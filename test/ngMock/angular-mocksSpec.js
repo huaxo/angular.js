@@ -697,72 +697,10 @@ describe('ngMock', function() {
       /* jshint -W001 */
       // MS IE8 just doesn't work for this kind of thing, since "for ... in" doesn't return
       // things like hasOwnProperty even if it is explicitly defined on the actual object!
-      if ($sniffer.msie<=8) return;
       $rootScope.hasOwnProperty = 'X';
       expect(d($rootScope)).toMatch(/Scope\(.*\): \{/);
       expect(d($rootScope)).toMatch(/hasOwnProperty: "X"/);
     }));
-  });
-
-
-  describe('angular.mock.clearDataCache', function() {
-    function keys(obj) {
-      var keysArr = [];
-      for(var key in obj) {
-        if (obj.hasOwnProperty(key)) keysArr.push(key);
-      }
-      return keysArr.sort();
-    }
-
-    function browserTrigger(element, eventType) {
-      element = element[0];
-      if (document.createEvent) {
-        var event = document.createEvent('MouseEvents');
-        event.initMouseEvent(eventType, true, true, window, 0, 0, 0, 0, 0, false, false,
-          false, false, 0, element);
-        element.dispatchEvent(event);
-      } else {
-        element.fireEvent('on' + eventType);
-      }
-    }
-
-    it('should remove data', function() {
-      expect(angular.element.cache).toEqual({});
-      var div = angular.element('<div></div>');
-      div.data('name', 'angular');
-      expect(keys(angular.element.cache)).not.toEqual([]);
-      angular.mock.clearDataCache();
-      expect(keys(angular.element.cache)).toEqual([]);
-    });
-
-    it('should deregister event handlers', function() {
-      expect(keys(angular.element.cache)).toEqual([]);
-      var log = '';
-      var div = angular.element('<div></div>');
-
-      // crazy IE9 requires div to be connected to render DOM for click event to work
-      // mousemove works even when not connected. This is a heisen-bug since stepping
-      // through the code makes the test pass. Viva IE!!!
-      angular.element(document.body).append(div);
-
-      div.on('click', function() { log += 'click1;'; });
-      div.on('click', function() { log += 'click2;'; });
-      div.on('mousemove', function() { log += 'mousemove;'; });
-
-      browserTrigger(div, 'click');
-      browserTrigger(div, 'mousemove');
-      expect(log).toEqual('click1;click2;mousemove;');
-      log = '';
-
-      angular.mock.clearDataCache();
-
-      browserTrigger(div, 'click');
-      browserTrigger(div, 'mousemove');
-      expect(log).toEqual('');
-      expect(keys(angular.element.cache)).toEqual([]);
-
-      div.remove();
-    });
   });
 
 
@@ -916,8 +854,6 @@ describe('ngMock', function() {
       // when thrown from a function defined on window (which `inject` is).
 
       it('should not change thrown Errors', inject(function($sniffer) {
-        if ($sniffer.msie <= 8) return;
-
         expect(function() {
           inject(function() {
             throw new Error('test message');
@@ -926,8 +862,6 @@ describe('ngMock', function() {
       }));
 
       it('should not change thrown strings', inject(function($sniffer) {
-        if ($sniffer.msie <= 8) return;
-
         expect(function() {
           inject(function() {
             throw 'test message';
@@ -954,6 +888,17 @@ describe('ngMock', function() {
       expect(typeof hb.expectDELETE).toBe("function");
       expect(typeof hb.expectHEAD).toBe("function");
     });
+
+
+    it('should provide "when" methods for each HTTP verb', function() {
+      expect(typeof hb.whenGET).toBe("function");
+      expect(typeof hb.whenPOST).toBe("function");
+      expect(typeof hb.whenPUT).toBe("function");
+      expect(typeof hb.whenPATCH).toBe("function");
+      expect(typeof hb.whenDELETE).toBe("function");
+      expect(typeof hb.whenHEAD).toBe("function");
+    });
+
 
     it('should respond with first matched definition', function() {
       hb.when('GET', '/url1').respond(200, 'content', {});
@@ -1149,6 +1094,44 @@ describe('ngMock', function() {
         expect(callback.callCount).toBe(2);
         expect(callback.argsForCall[0]).toEqual([200, 'first', '', '']);
         expect(callback.argsForCall[1]).toEqual([200, 'second', '', '']);
+      });
+
+      it('should be able to override response of expect definition', function() {
+        var definition = hb.expect('GET', '/url1');
+        definition.respond('first');
+        definition.respond('second');
+
+        hb('GET', '/url1', null, callback);
+        hb.flush();
+        expect(callback).toHaveBeenCalledOnceWith(200, 'second', '', '');
+      });
+
+      it('should be able to override response of when definition', function() {
+        var definition = hb.when('GET', '/url1');
+        definition.respond('first');
+        definition.respond('second');
+
+        hb('GET', '/url1', null, callback);
+        hb.flush();
+        expect(callback).toHaveBeenCalledOnceWith(200, 'second', '', '');
+      });
+
+      it('should be able to override response of expect definition with chaining', function() {
+        var definition = hb.expect('GET', '/url1').respond('first');
+        definition.respond('second');
+
+        hb('GET', '/url1', null, callback);
+        hb.flush();
+        expect(callback).toHaveBeenCalledOnceWith(200, 'second', '', '');
+      });
+
+      it('should be able to override response of when definition with chaining', function() {
+        var definition = hb.when('GET', '/url1').respond('first');
+        definition.respond('second');
+
+        hb('GET', '/url1', null, callback);
+        hb.flush();
+        expect(callback).toHaveBeenCalledOnceWith(200, 'second', '', '');
       });
     });
 
@@ -1552,6 +1535,25 @@ describe('ngMockE2E', function() {
         expect(realHttpBackend).toHaveBeenCalledOnceWith(
             'GET', '/passThrough/23', null, callback, {}, null, true);
       });
+
+      it('should be able to override a respond definition with passThrough', function() {
+        var definition = hb.when('GET', /\/passThrough\/.*/).respond('override me');
+        definition.passThrough();
+        hb('GET', '/passThrough/23', null, callback, {}, null, true);
+
+        expect(realHttpBackend).toHaveBeenCalledOnceWith(
+            'GET', '/passThrough/23', null, callback, {}, null, true);
+      });
+
+      it('should be able to override a respond definition with passThrough', inject(function($browser) {
+        var definition = hb.when('GET', /\/passThrough\/.*/).passThrough();
+        definition.respond('passThrough override');
+        hb('GET', '/passThrough/23', null, callback, {}, null, true);
+        $browser.defer.flush();
+
+        expect(realHttpBackend).not.toHaveBeenCalled();
+        expect(callback).toHaveBeenCalledOnceWith(200, 'passThrough override', '', '');
+      }));
     });
 
 

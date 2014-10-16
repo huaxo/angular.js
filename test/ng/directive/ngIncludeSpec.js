@@ -121,7 +121,7 @@ describe('ngInclude', function() {
     element = $compile('<div><div><ng:include src="\'url\'"></ng:include></div></div>')($rootScope);
     $rootScope.$digest();
 
-    expect(contentRequestedSpy).toHaveBeenCalledOnce();
+    expect(contentRequestedSpy).toHaveBeenCalledOnceWith(jasmine.any(Object), 'url');
 
     $httpBackend.flush();
   }));
@@ -139,7 +139,7 @@ describe('ngInclude', function() {
     element = $compile('<div><div><ng:include src="\'url\'"></ng:include></div></div>')($rootScope);
     $rootScope.$digest();
 
-    expect(contentLoadedSpy).toHaveBeenCalledOnce();
+    expect(contentLoadedSpy).toHaveBeenCalledOnceWith(jasmine.any(Object), 'url');
   }));
 
 
@@ -161,7 +161,7 @@ describe('ngInclude', function() {
     $httpBackend.flush();
 
     expect(contentLoadedSpy).not.toHaveBeenCalled();
-    expect(contentErrorSpy).toHaveBeenCalledOnce();
+    expect(contentErrorSpy).toHaveBeenCalledOnceWith(jasmine.any(Object), 'tpl.html');
     expect(element.children('div').contents().length).toBe(0);
   }));
 
@@ -199,6 +199,7 @@ describe('ngInclude', function() {
     $rootScope.url = 'url2';
     $rootScope.$digest();
     $httpBackend.flush();
+
     expect($rootScope.$$childHead).toBeFalsy();
     expect(element.text()).toBe('');
 
@@ -359,6 +360,46 @@ describe('ngInclude', function() {
       delete window._ngIncludeCausesScriptToRun;
     } catch (e) {}
   }));
+
+
+  it('should construct SVG template elements with correct namespace', function() {
+    if (!window.SVGRectElement) return;
+    module(function($compileProvider) {
+      $compileProvider.directive('test', valueFn({
+        templateNamespace: 'svg',
+        templateUrl: 'my-rect.html',
+        replace: true
+      }));
+    });
+    inject(function($compile, $rootScope, $httpBackend) {
+      $httpBackend.expectGET('my-rect.html').respond('<g ng-include="\'include.svg\'"></g>');
+      $httpBackend.expectGET('include.svg').respond('<rect></rect><rect></rect>');
+      element = $compile('<svg><test></test></svg>')($rootScope);
+      $httpBackend.flush();
+      var child = element.find('rect');
+      expect(child.length).toBe(2);
+      expect(child[0] instanceof SVGRectElement).toBe(true);
+    });
+  });
+
+
+  it('should compile only the template content of an SVG template', function() {
+    if (!window.SVGRectElement) return;
+    module(function($compileProvider) {
+      $compileProvider.directive('test', valueFn({
+        templateNamespace: 'svg',
+        templateUrl: 'my-rect.html',
+        replace: true
+      }));
+    });
+    inject(function($compile, $rootScope, $httpBackend) {
+      $httpBackend.expectGET('my-rect.html').respond('<g ng-include="\'include.svg\'"><a></a></g>');
+      $httpBackend.expectGET('include.svg').respond('<rect></rect><rect></rect>');
+      element = $compile('<svg><test></test></svg>')($rootScope);
+      $httpBackend.flush();
+      expect(element.find('a').length).toBe(0);
+    });
+  });
 
 
   describe('autoscroll', function() {
@@ -693,14 +734,12 @@ describe('ngInclude animations', function() {
 
   it('should destroy the previous leave animation if a new one takes place', function() {
     module(function($provide) {
-      $provide.value('$animate', {
-        enabled : function() { return true; },
-        leave : function() {
-          //DOM operation left blank
-        },
-        enter : function(element, parent, after) {
-          angular.element(after).after(element);
-        }
+      $provide.decorator('$animate', function($delegate, $$q) {
+        var emptyPromise = $$q.defer().promise;
+        $delegate.leave = function() {
+          return emptyPromise;
+        };
+        return $delegate;
       });
     });
     inject(function ($compile, $rootScope, $animate, $templateCache) {

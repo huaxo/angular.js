@@ -49,7 +49,17 @@ describe('Filter: filter', function() {
     expect(filter(items, function(i) {return i.done;}).length).toBe(1);
   });
 
-  it('should take object as perdicate', function() {
+  it('should pass the index to a function predicate', function() {
+    var items = [0, 1, 2, 3];
+
+    var result = filter(items, function(value, index) {
+      return index % 2 === 0;
+    });
+
+    expect(result).toEqual([0, 2]);
+  });
+
+  it('should take object as predicate', function() {
     var items = [{first: 'misko', last: 'hevery'},
                  {first: 'adam', last: 'abrons'}];
 
@@ -61,7 +71,7 @@ describe('Filter: filter', function() {
   });
 
 
-  it('should support predicat object with dots in the name', function() {
+  it('should support predicate object with dots in the name', function() {
     var items = [{'first.name': 'misko', 'last.name': 'hevery'},
                  {'first.name': 'adam', 'last.name': 'abrons'}];
 

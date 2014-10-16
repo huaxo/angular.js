@@ -23,20 +23,6 @@ describe('$sniffer', function() {
     });
   });
 
-  describe('hashchange', function() {
-    it('should be true if onhashchange property defined', function() {
-      expect(sniffer({onhashchange: true}).hashchange).toBe(true);
-    });
-
-    it('should be false if onhashchange property not defined', function() {
-      expect(sniffer({}).hashchange).toBe(false);
-    });
-
-    it('should be false if documentMode is 7 (IE8 comp mode)', function() {
-      expect(sniffer({onhashchange: true}, {documentMode: 7}).hashchange).toBe(false);
-    });
-  });
-
 
   describe('hasEvent', function() {
     var mockDocument, mockDivElement, $sniffer;
@@ -106,9 +92,6 @@ describe('$sniffer', function() {
         }
         else if(/ie/i.test(ua) || /trident/i.test(ua)) {
           expectedPrefix = 'Ms';
-        }
-        else if(/opera/i.test(ua)) {
-          expectedPrefix = 'O';
         }
         expect($sniffer.vendorPrefix).toBe(expectedPrefix);
       });
@@ -348,17 +331,5 @@ describe('$sniffer', function() {
     inject(function($sniffer) {
       expect($sniffer.android).toBe(2);
     });
-  });
-
-  it('should return the internal msie flag', inject(function($sniffer) {
-    expect(isNaN($sniffer.msie)).toBe(isNaN(msie));
-    if (msie) {
-      expect($sniffer.msie).toBe(msie);
-    }
-  }));
-
-  it('should return document.documentMode as msieDocumentMode', function() {
-    var someDocumentMode = 123;
-    expect(sniffer({}, {documentMode: someDocumentMode}).msieDocumentMode).toBe(someDocumentMode);
   });
 });
